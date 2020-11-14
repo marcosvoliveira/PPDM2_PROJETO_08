@@ -1,139 +1,79 @@
-import 'package:app_3/helpers/contact_helper.dart';
-import 'package:app_3/ui/contact_page.dart';
-import 'package:flutter/material.dart';
-import 'dart:io';
+import 'package:flutter/rendering.dart';
+import 'package:sqflite/sqflite.dart';
+import 'package:path/path.dart';
 
-class HomePage extends StatefulWidget {
-  @override
-  _HomePageState createState() => _HomePageState();
-}
+final String contactTable = "contactTable";
+final String idColumn = "idColumn";
+final String nameColumn = "nameColumn";
+final String emailColumn = "emailColumn";
+final String phoneColumn = "phoneColumn";
+final String imgColumn = "imgColumn";
 
-class _HomePageState extends State<HomePage> {
-  ContactHelper helper = ContactHelper();
-  List<Contact> contacts = List();
+//um objeto no projeto inteiro = singleton
+class ContactHelper {
+  static final ContactHelper _instance = ContactHelper.internal();
 
-  @override
-  void initState() {
-    super.initState();
-    _getAllContacts();
+  factory ContactHelper() => _instance;
+  ContactHelper.internal();
 
-/*
-    Contact c = Contact();
-    c.name = "Marcos Vasconcelos";
-    c.email = "email@mail.com";
-    c.phone = "9999 88 77";
-    c.img = "imgTeste";
-    helper.saveContact(c);
-    
+  Database _db;
 
-    helper.getAllContacts().then((list) {
-      print(list);
-    });
-    */
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text("Contatos"),
-        backgroundColor: Colors.red,
-        centerTitle: true,
-      ),
-      backgroundColor: Colors.white,
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          _showContactPage();
-        },
-        child: Icon(Icons.add),
-        backgroundColor: Colors.red,
-      ),
-      body: ListView.builder(
-        padding: EdgeInsets.all(10),
-        itemCount: contacts.length,
-        itemBuilder: (context, index) {
-          return _contactCard(context, index);
-        },
-      ),
-    );
-  }
-
-  Widget _contactCard(BuildContext context, int index) {
-    return GestureDetector(
-      child: Card(
-        child: Padding(
-          padding: EdgeInsets.all(10),
-          child: Row(
-            children: [
-              Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  image: DecorationImage(
-                      image: contacts[index].img != null
-                          ? FileImage(File(contacts[index].img))
-                          : AssetImage("images/person.png"),
-                      fit: BoxFit.cover),
-                ),
-              ),
-              Padding(
-                padding: EdgeInsets.only(left: 10),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      contacts[index].name ?? "",
-                      style:
-                          TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                    ),
-                    Text(
-                      contacts[index].email ?? "",
-                      style: TextStyle(
-                        fontSize: 18,
-                      ),
-                    ),
-                    Text(
-                      contacts[index].phone ?? "",
-                      style: TextStyle(
-                        fontSize: 18,
-                      ),
-                    )
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-      onTap: () {
-        _showContactPage(contact: contacts[index]);
-      },
-    );
-  }
-
-  void _showContactPage({Contact contact}) async {
-    final recContact = await Navigator.push(
-        context,
-        MaterialPageRoute(
-            builder: (context) => ContactPage(
-                  contact: contact,
-                )));
-    if (recContact != null) {
-      if (contact != null) {
-        await helper.updateContact(recContact);
-      } else {
-        await helper.saveContact(recContact);
-      }
-      _getAllContacts();
+  get db async {
+    if (_db != null) {
+      return _db;
+    } else {
+      _db = await initDb();
+	  return _db;
     }
   }
 
-  void _getAllContacts() {
-    helper.getAllContacts().then((list) {
-      setState(() {
-        contacts = list;
-      });
+  Future<Database> initDb() async {
+    final databasesPath = await getDatabasesPath();
+    final path = join(databasesPath, "contacts.db");
+
+    return await openDatabase(path, version: 1,
+        onCreate: (Database db, int newerVersion) async {
+      await db.execute(
+          "CREATE TABLE $contactTable($idColumn INTEGER PRIMARY KEY, "
+          "$nameColumn TEXT, $emailColumn TEXT,"
+          "$phoneColumn TEXT, $imgColumn TEXT)");
     });
+
+  }
+}
+
+class Contact {
+  int id;
+  String name;
+  String email;
+  String phone;
+  String img;
+
+//Mapa para Contato
+  Contact.fromMap(Map map) {
+    id = map[idColumn];
+    name = map[nameColumn];
+    email = map[emailColumn];
+    phone = map[phoneColumn];
+    img = map[imgColumn];
+  }
+
+  //contato para Mapa
+  Map toMap() {
+    Map<String, dynamic> map = {
+      nameColumn: name,
+      emailColumn: email,
+      phoneColumn: phone,
+      imgColumn: img
+    };
+    if (id != null) {
+      map[idColumn] = id;
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return "Contact(id: $id, name: $name, email: $email, phone: $phone, img$img)";
   }
 }
